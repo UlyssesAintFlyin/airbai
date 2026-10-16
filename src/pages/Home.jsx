@@ -1,65 +1,63 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { RoomCard } from "../components/RoomCard";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../firebase";
+import { useOutletContext } from "react-router-dom";
 
-const rooms = [
-  {
-    id: 1,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 night * 5.0 (1)",
-  },
-  {
-    id: 2,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 nights * 5.0 (1)",
-  },
-  {
-    id: 3,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 nights * 5.0 (1)",
-  },
-  {
-    id: 4,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 nights * 5.0 (1)",
-  },
-  {
-    id: 5,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 nights * 5.0 (1)",
-  },
-  {
-    id: 6,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 nights * 5.0 (1)",
-  },
-  {
-    id: 7,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 nights * 5.0 (1)",
-  },
-  {
-    id: 8,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 nights * 5.0 (1)",
-  },
-  {
-    id: 9,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    description: "P 1,756 for 1 nights * 5.0 (1)",
-  },
-];
 
 export const Home = () => {
+  const { searchQuery } = useOutletContext();
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const q = query(
+          collection(db, "listings"),
+          where("status", "==", "approved")
+        );
+
+        const snapshot = await getDocs(q);
+
+        const roomData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setRooms(roomData);
+      } catch (error) {
+        console.error("Error fetching rooms:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRooms();
+  }, []);
+
+  const filteredRooms = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase();
+    if (!term) return rooms;
+
+    return rooms.filter((room) => {
+      const loc = room.location 
+      const haystack = [
+        room.name,
+        room.listingDescription,
+        loc?.address,
+        loc?.locInfo,
+        ...(room.attributes ?? []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(term);
+    });
+  }, [rooms, searchQuery]);
+
   return (
     <Box
       sx={{
@@ -69,36 +67,38 @@ export const Home = () => {
       }}
     >
       <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold", mb: 2 }}>
-        Available Rooms.
+        Available Listings.
       </Typography>
+
+      {!loading && filteredRooms.length === 0 && (
+        <Typography color="text.secondary">
+          {searchQuery
+            ? `No listings match "${searchQuery}".`
+            : "No listings available yet."}
+        </Typography>
+      )}
+
 
       <Box
         sx={{
           display: "grid",
           gap: 2,
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+          gridTemplateColumns: {
+            xs: "repeat(2, 1fr)",
+            sm: "repeat(auto-fill, minmax(180px, 1fr))",
+          },
           mb: 5,
         }}
       >
-        {rooms.map((room) => (
-          <RoomCard {...room} to={`/listing/${room.id}`} />
-        ))}
-      </Box>
-
-      <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold", mb: 2 }}>
-        Available Condos.
-      </Typography>
-
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-          mb: 5,
-        }}
-      >
-        {rooms.map((room) => (
-          <RoomCard {...room} to={`/listing/${room.id}`} />
+        {filteredRooms.map((room) => (
+          <RoomCard
+            key={room.id}
+            id={room.id}
+            title={room.name}
+            image={room.imageUrl}
+            description={`₱${room.roomRate}/night`}
+            to={`/listing/${room.id}`}
+          />
         ))}
       </Box>
     </Box>

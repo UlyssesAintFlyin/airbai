@@ -25,6 +25,8 @@ import { ListingMasterlistHost } from "./pages/ListingMasterlistHost";
 import { ViewListingHost } from "./pages/ViewListingHost";
 import { AddListing } from "./pages/AddListing";
 import { EditListing } from "./pages/EditListing";
+import { BookingCancelled } from "./pages/BookingCancelled";
+import { BookingSuccess } from "./pages/BookingSuccess";
 
 function App() {
   return (
@@ -37,6 +39,8 @@ function App() {
               <Route path="listing/:id" element={<SpecificListing />} />
               <Route path="payment/:id" element={<PaymentListing />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="booking/success" element={<BookingSuccess />} />
+              <Route path="/booking/cancelled" element={<BookingCancelled />} />
               <Route
                 path="admin"
                 element={
@@ -114,6 +118,7 @@ export default App;
 function LayoutWithHeader() {
   const [openLogin, setOpenLogin] = useState(false);
   const openLoginDialog = () => setOpenLogin(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -131,13 +136,18 @@ function LayoutWithHeader() {
 
   return (
     <>
-      <Header onOpenLogin={openLoginDialog} showSnackbar={showSnackbar} />
+      <Header
+        onOpenLogin={openLoginDialog}
+        showSnackbar={showSnackbar}
+        onSearch={setSearchQuery}
+      />
 
       <main>
         <Outlet
           context={{
             openLogin: openLoginDialog,
             showSnackbar,
+            searchQuery, 
           }}
         />
       </main>

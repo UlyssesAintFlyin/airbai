@@ -7,6 +7,8 @@ import { BookingSummary } from "../components/BookingSummary";
 import { useOutletContext } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const OrangeButton = (props) => (
   <Button
     size="small"
@@ -23,13 +25,13 @@ const OrangeButton = (props) => (
 );
 
 export const PaymentListing = () => {
-  const { openLogin } = useOutletContext();
+  const { openLogin, showSnackbar } = useOutletContext();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { state } = useLocation();
 
   const [activeStep, setActiveStep] = useState(user ? 2 : 1);
-  const [gcash, setGcash] = useState("");
+  const [loading, setLoading] = useState(false);
 
   if (!state)
     return <Typography sx={{ m: 4 }}>No booking in progress.</Typography>;
@@ -39,8 +41,28 @@ export const PaymentListing = () => {
   const next = () => setActiveStep((s) => s + 1);
 
   const handleConfirm = async () => {
-    // later: write to Firestore "bookings" here, then navigate to a success page
-    console.log({ listing, booking, gcash });
+    if (!user) return openLogin();
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/create-checkout-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.id,
+          userId: user.id,
+          checkIn: booking.checkIn.toISOString(),
+          checkOut: booking.checkOut.toISOString(),
+          guests: booking.guests,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not start payment");
+      window.location.href = data.url; 
+    } catch (err) {
+      console.error(err);
+      showSnackbar?.(err.message || "Could not complete the booking.", "error");
+      setLoading(false);
+    }
   };
 
   return (
@@ -96,42 +118,29 @@ export const PaymentListing = () => {
             active={activeStep === 1}
             done={done(1)}
             onEdit={() => setActiveStep(1)}
-            action={<OrangeButton onClick={user ? () => setActiveStep(2) : openLogin}>Continue</OrangeButton>}
+            action={
+              <OrangeButton onClick={user ? () => setActiveStep(2) : openLogin}>
+                Continue
+              </OrangeButton>
+            }
           />
 
           <StepPanel
             number={2}
-            title="Add payment method"
+            title="Review and pay"
             active={activeStep === 2}
-            done={done(2)}
-            onEdit={() => setActiveStep(2)}
+            done={false}
           >
-            <Typography sx={{ fontWeight: "bold", color: "#0a5cff", mb: 1 }}>
-              GCash
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Check your reservation details in the summary. You'll be
+              redirected to Stripe's secure checkout to complete your payment.
             </Typography>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Gcash number..."
-              value={gcash}
-              onChange={(e) => setGcash(e.target.value)}
-            />
             <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-              <OrangeButton disabled={gcash.length < 11} onClick={next}>
-                Continue
+              <OrangeButton onClick={handleConfirm} disabled={loading}>
+                {loading ? "Redirecting..." : "Pay with Stripe"}
               </OrangeButton>
             </Box>
           </StepPanel>
-
-          <StepPanel
-            number={3}
-            title="Review your reservation"
-            active={activeStep === 3}
-            done={false}
-            action={
-              <OrangeButton onClick={handleConfirm}>Confirm</OrangeButton>
-            }
-          />
         </Box>
 
         {/* RIGHT: summary */}

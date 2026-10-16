@@ -12,8 +12,15 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { DayPicker } from "react-day-picker";
-import { differenceInCalendarDays, format } from "date-fns";
+import {
+  differenceInCalendarDays,
+  eachDayOfInterval,
+  addDays,
+  format,
+  startOfToday,
+} from "date-fns";
 import "react-day-picker/style.css";
+import { computeBreakdown } from "../utils/pricing";
 
 const GuestRow = ({ label, sub, value, min = 0, onChange, disableAdd }) => (
   <Box
@@ -54,10 +61,20 @@ const GuestRow = ({ label, sub, value, min = 0, onChange, disableAdd }) => (
 );
 
 export const ReservationBox = ({
-  pricePerNight = 2700,
-  maxGuests = 4,
+  pricePerNight = 0,
+  capacity = {},
+  fees = {},
+  fullyBookedNights = new Set(),
   onReserve,
 }) => {
+  
+  const cap = {
+    adults: capacity.adults ?? 1,
+    children: capacity.children ?? 0,
+    infant: capacity.infant ?? 0,
+    pets: capacity.pets ?? 0,
+  };
+  const [rangeError, setRangeError] = useState("");
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -65,23 +82,55 @@ export const ReservationBox = ({
   const [guests, setGuests] = useState({
     adults: 1,
     children: 0,
-    infants: 0,
+    infant: 0,
     pets: 0,
   });
 
   const [dateAnchor, setDateAnchor] = useState(null);
   const [guestAnchor, setGuestAnchor] = useState(null);
 
+  const fmt = (d) => (d ? format(d, "MM/dd/yy") : "Add date");
+  const setGuest = (key) => (val) => setGuests((g) => ({ ...g, [key]: val }));
+
+  const keyOf = (d) => format(d, "yyyy-MM-dd");
+
+  const isDisabled = (day) => {
+    if (day < startOfToday()) return true;
+    if (!fullyBookedNights.has(keyOf(day))) return false;
+    // a booked day can still be a check-out day (guest leaves that morning)
+    return !(range?.from && !range?.to && day > range.from);
+  };
+
+  const handleSelect = (next) => {
+    setRangeError("");
+    if (next?.from && next?.to) {
+      const crossesBooked = eachDayOfInterval({
+        start: next.from,
+        end: addDays(next.to, -1),
+      }).some((d) => fullyBookedNights.has(keyOf(d)));
+
+      if (crossesBooked) {
+        setRange(undefined);
+        setRangeError("Those dates include a night that's fully booked.");
+        return;
+      }
+    }
+    setRange(next);
+  };
+
   const nights =
     range?.from && range?.to
       ? differenceInCalendarDays(range.to, range.from)
       : 0;
-  const total = nights * pricePerNight;
-  const guestCount = guests.adults + guests.children;
-  const guestsFull = guestCount >= maxGuests;
 
-  const fmt = (d) => (d ? format(d, "MM/dd/yy") : "Add date");
-  const setGuest = (key) => (val) => setGuests((g) => ({ ...g, [key]: val }));
+  const breakdown = computeBreakdown({
+    roomRate: pricePerNight,
+    fees,
+    nights,
+    guests,
+  });
+
+  const guestCount = guests.adults + guests.children;
 
   return (
     <Box
@@ -96,18 +145,20 @@ export const ReservationBox = ({
       }}
     >
       {/* Price */}
-      <Box sx={{ display: "flex", mt:1}}>
+      <Box sx={{ display: "flex", mt: 1 }}>
         <Typography sx={{ fontSize: 18, fontWeight: "bold" }}>
-        {nights > 0
-          ? `₱${total.toLocaleString()}`
-          : `₱${pricePerNight.toLocaleString()}`}
-        <Typography
-          component="span"
-          sx={{ fontSize: 11, ml: 1, color: "#6b6b6b" }}
-        >
-          {nights > 0 ? `For ${nights} Nights` : "per night"}
+          {nights > 0
+            ? `₱${breakdown.total.toLocaleString()}`
+            : `₱${pricePerNight.toLocaleString()}`}
+          <Typography
+            component="span"
+            sx={{ fontSize: 11, ml: 1, color: "#6b6b6b" }}
+          >
+            {nights > 0
+              ? `total for ${nights} night${nights > 1 ? "s" : ""}`
+              : "per night"}
+          </Typography>
         </Typography>
-      </Typography>
       </Box>
 
       {/* Check-in / Check-out */}
@@ -159,8 +210,8 @@ export const ReservationBox = ({
             </Typography>
             <Typography sx={{ fontSize: 13 }}>
               {guestCount} guest{guestCount > 1 ? "s" : ""}
-              {guests.infants > 0 &&
-                `, ${guests.infants} infant${guests.infants > 1 ? "s" : ""}`}
+              {guests.infant > 0 &&
+                `, ${guests.infant} infant${guests.infant > 1 ? "s" : ""}`}
               {guests.pets > 0 &&
                 `, ${guests.pets} pet${guests.pets > 1 ? "s" : ""}`}
             </Typography>
@@ -178,7 +229,7 @@ export const ReservationBox = ({
             checkOut: range.to,
             guests,
             nights,
-            total,
+            breakdown,
           })
         }
         sx={{
@@ -222,14 +273,20 @@ export const ReservationBox = ({
         <DayPicker
           mode="range"
           selected={range}
-          onSelect={setRange}
+          onSelect={handleSelect}
           numberOfMonths={isMobile ? 1 : 2}
-          disabled={{ before: new Date() }}
+          disabled={isDisabled}
           style={{
             "--rdp-accent-color": "#101010",
             "--rdp-accent-background-color": "#efefef",
           }}
         />
+
+        {rangeError && (
+          <Typography sx={{ color: "error.main", fontSize: 12 }}>
+            {rangeError}
+          </Typography>
+        )}
 
         <Box
           sx={{
@@ -285,32 +342,32 @@ export const ReservationBox = ({
       >
         <GuestRow
           label="Adults"
-          sub="Age 13+"
+          sub={`Age 13+ (max ${cap.adults})`}
           min={1}
           value={guests.adults}
           onChange={setGuest("adults")}
-          disableAdd={guestsFull}
+          disableAdd={guests.adults >= cap.adults}
         />
         <GuestRow
           label="Children"
-          sub="Ages 2-12"
+          sub={cap.children ? `Ages 2-12 (max ${cap.children})` : "Not allowed"}
           value={guests.children}
           onChange={setGuest("children")}
-          disableAdd={guestsFull}
+          disableAdd={guests.children >= cap.children}
         />
         <GuestRow
-          label="Infants"
-          sub="Under 2"
-          value={guests.infants}
-          onChange={setGuest("infants")}
-          disableAdd={guests.infants >= 5}
+          label="Infant"
+          sub={cap.infant ? `Under 2 (max ${cap.infant})` : "Not allowed"}
+          value={guests.infant}
+          onChange={setGuest("infant")}
+          disableAdd={guests.infant >= cap.infant}
         />
         <GuestRow
           label="Pets"
-          sub="Service animals count too"
+          sub={cap.pets ? `Max ${cap.pets}` : "Not allowed"}
           value={guests.pets}
           onChange={setGuest("pets")}
-          disableAdd={guests.pets >= 5}
+          disableAdd={guests.pets >= cap.pets}
         />
       </Popover>
     </Box>

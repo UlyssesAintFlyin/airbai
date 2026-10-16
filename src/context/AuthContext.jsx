@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { getUserProfile, logOut } from "../services/auth";
+import { logOut } from "../services/auth";
 import { onSnapshot, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -39,14 +39,6 @@ export const AuthProvider = ({ children }) => {
       unsubAuth();
       unsubProfile?.();
     };
-  }, []);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (fbUser) => {
-      setUser(fbUser ? await getUserProfile(fbUser.uid) : null);
-      setLoading(false);
-    });
-    return unsub;
   }, []);
 
   return (

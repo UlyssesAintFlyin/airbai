@@ -1,60 +1,60 @@
 import React, { useState } from "react";
+import { CircularProgress } from "@mui/material";
 import { Button, Box, Typography, IconButton, Avatar } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { ReservationBox } from "../components/ReservationBox";
 import { ReviewCard } from "../components/ReviewCard";
 import { ReviewDialog } from "../components/ReviewDialog";
 import { ListingMap } from "../components/ListingMap";
-
-
-const reviews = [
-  {
-    id: 1,
-    name: "Jonathan Cruz",
-    date: "1 week ago",
-    rating: 5,
-    review: "Amazing stay, the place was so nice... very recommendable...",
-  },
-  {
-    id: 2,
-    name: "Maria Santos",
-    date: "2 weeks ago",
-    rating: 5,
-    review:
-      "Super close to IT Park, spotless and the view from the 15th floor is great.",
-  },
-  {
-    id: 3,
-    name: "Alex Reyes",
-    date: "3 weeks ago",
-    rating: 4,
-    review: "Great location and host was very responsive. Check-in was easy.",
-  },
-  {
-    id: 4,
-    name: "Kim Lee",
-    date: "1 month ago",
-    rating: 5,
-    review: "Perfect for a business trip. Fast wifi and comfortable bed.",
-  },
-  {
-    id: 5,
-    name: "Paolo Garcia",
-    date: "1 month ago",
-    rating: 5,
-    review: "Would definitely stay again!",
-  },
-  {
-    id: 6,
-    name: "Anna Lim",
-    date: "2 months ago",
-    rating: 5,
-    review: "Clean, cozy, and exactly like the photos.",
-  },
-];
+import { useListing } from "../hooks/useListing";
+import { useParams, useNavigate } from "react-router-dom";
+import { useFullyBookedNights } from "../hooks/useFullyBookedNights";
 
 export const SpecificListing = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { listing, host, reviews, loading, error } = useListing(id);
+  const fullyBookedNights = useFullyBookedNights(
+    id,
+    listing?.capacity?.roomCount,
+  );
   const [reviewsOpen, setReviewsOpen] = useState(false);
+
+  if (loading)
+    return (
+      <Box sx={{ m: 4, textAlign: "center" }}>
+        <CircularProgress />
+      </Box>
+    );
+  if (error) return <Typography sx={{ m: 4 }}>{error}</Typography>;
+  if (!listing) return null;
+
+  const handleReserve = (booking) =>
+    navigate(`/payment/${listing.id}`, {
+      state: {
+        listing: {
+          id: listing.id,
+          name: listing.name,
+          imageUrl: listing.imageUrl,
+          roomRate: listing.roomRate,
+          fees: listing.fees,
+        },
+        booking,
+      },
+    });
+
+  const rated = reviews.filter((r) => r.rating > 0);
+  const avgRating = rated.length
+    ? (rated.reduce((sum, r) => sum + r.rating, 0) / rated.length).toFixed(1)
+    : null;
+
+  const hostInitials = host?.name
+    ? `${host.name.fName[0]}${host.name.lName[0]}`
+    : "?";
+  const { latitude, longitude } = listing.location.geoLoc;
+  const hostName = host?.name
+    ? `${host.name.fName} ${host.name.lName}`
+    : "Unknown host";
   return (
     <Box sx={{ display: "flex", flexDirection: "column", margin: 2 }}>
       <Box
@@ -89,7 +89,7 @@ export const SpecificListing = () => {
             fontSize: { xs: "1rem", sm: "1.5rem" },
           }}
         >
-          Viewing Listing Details
+          Viewing {listing.name}
         </Typography>
       </Box>
 
@@ -107,7 +107,7 @@ export const SpecificListing = () => {
           >
             <Box
               component="img"
-              src="/resources/room1.png"
+              src={listing.imageUrl}
               alt="Listing"
               sx={{
                 width: { xs: "100%", sm: "70%" },
@@ -124,9 +124,11 @@ export const SpecificListing = () => {
               }}
             >
               <ReservationBox
-                pricePerNight={2700}
-                maxGuests={4}
-                onReserve={(booking) => console.log(booking)}
+                pricePerNight={listing.roomRate}
+                capacity={listing.capacity}
+                fees={listing.fees}
+                fullyBookedNights={fullyBookedNights}
+                onReserve={handleReserve}
               />
             </Box>
           </Box>
@@ -150,19 +152,20 @@ export const SpecificListing = () => {
                 fontSize: { xs: "1rem", sm: "1.25rem" },
               }}
             >
-              Listing Title
+              {listing.name}
             </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                mt: 1,
-                lineHeight: 1.5,
-                fontSize: { xs: "12px", sm: "15px" },
-              }}
-            >
-              Listing description goes here. This is a placeholder for the
-              actual listing details.
-            </Typography>
+            {listing.attributes?.length > 0 && (
+              <Typography
+                variant="body1"
+                sx={{
+                  mt: 1,
+                  lineHeight: 1.5,
+                  fontSize: { xs: "12px", sm: "15px" },
+                }}
+              >
+                {listing.attributes?.join(" - ")}
+              </Typography>
+            )}
             <Typography
               variant="body1"
               sx={{
@@ -172,7 +175,7 @@ export const SpecificListing = () => {
                 fontWeight: "bold",
               }}
             >
-              5.0 -{" "}
+              {avgRating ?? "New"} ·{" "}
               <u
                 style={{ cursor: "pointer" }}
                 onClick={() => setReviewsOpen(true)}
@@ -202,7 +205,7 @@ export const SpecificListing = () => {
                 fontSize: "1.5rem",
               }}
             >
-              IM
+              {hostInitials}
             </Avatar>
 
             <Box
@@ -223,16 +226,18 @@ export const SpecificListing = () => {
                   fontSize: "20px",
                 }}
               >
-                Ivan M.
+                {hostName}
               </Typography>
               <Typography
                 variant="body1"
                 sx={{
                   lineHeight: 1.5,
-                  fontSize:  "16px",
+                  fontSize: "16px",
                 }}
               >
-                Situated in Cebu
+                {host?.location?.address
+                  ? `Situated in ${host.location.address}`
+                  : "Address not available"}
               </Typography>
             </Box>
           </Box>
@@ -273,10 +278,7 @@ export const SpecificListing = () => {
                     textAlign: "center",
                   }}
                 >
-                  Located at the 15th floor of The Median Condominium. Just a
-                  few minutes walk to Cebu IT Park and Waterfront Hotel. Whether
-                  you're here for business or leisure, solo or with a partner,
-                  this condo is your perfect base in the city.
+                  {listing.listingDescription}
                 </Typography>
               </Box>
             </Box>
@@ -322,9 +324,7 @@ export const SpecificListing = () => {
           </Box>
 
           <Box sx={{ display: "flex", flexDirection: "column", mb: 7 }}>
-            <Box
-              sx={{ display: "flex", flexDirection: "column", gap: 1 }}
-            >
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <Typography
                 variant="h6"
                 sx={{
@@ -340,16 +340,15 @@ export const SpecificListing = () => {
                 variant="body2"
                 sx={{ color: "text.secondary", fontWeight: "bold" }}
               >
-                Cebu City, Cebu, Philippines
+                {listing.location.address}
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                A historic trade port with quick access to scuba diving, the
-                city also stays lively after dark with karaoke nights in local
-                bars.
+                {listing.location.locInfo}
               </Typography>
             </Box>
 
-            <Box className="map-container"
+            <Box
+              className="map-container"
               sx={{
                 width: "100%",
                 objectFit: "cover",
@@ -359,10 +358,9 @@ export const SpecificListing = () => {
                 mt: 2,
               }}
             >
-              <ListingMap lat={10.327} lng={123.906} />
+              <ListingMap lat={latitude} lng={longitude} />
             </Box>
           </Box>
-
         </Box>
       </Box>
       <ReviewDialog
