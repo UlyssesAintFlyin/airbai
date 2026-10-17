@@ -1,8 +1,20 @@
 import React, { useState } from "react";
-import { Box, TextField, Button, Typography, IconButton } from "@mui/material";
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
+  IconButton,
+  Autocomplete,
+} from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
 import { ListingMapAdmin } from "../components/ListingMapAdmin";
+import { useAuth } from "../context/AuthContext";
+import { Snackbar, Alert } from "@mui/material";
+import { addDoc, collection, Timestamp, GeoPoint } from "firebase/firestore";
+import { db } from "../firebase";
+import { useNavigate } from "react-router-dom";
 
 const textfieldSx = {
   bgcolor: "#fff",
@@ -22,12 +34,15 @@ const textfieldSx = {
 };
 
 export const AddListing = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [listingData, setListingData] = useState({
     roomName: "",
     description: "",
     latitude: 14.594323669692164,
     longitude: 120.9803499922559,
-    locationName: "",
+    imageURL: "",
+    locationAddress: "",
     locationInformation: "",
     roomRate: "",
     serviceFee: "",
@@ -35,12 +50,119 @@ export const AddListing = () => {
     tax: "",
     petFee: "",
     kidsFee: "",
+    adultCapacity: "",
+    childCapacity: "",
+    infantCapacity: "",
+    petCapacity: "",
+    roomCount: "",
   });
+
+  const [attributes, setAttributes] = useState([]);
+
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    severity: "error",
+    message: "",
+  });
+
+  const showError = (message) => {
+    setSnackbar({
+      open: true,
+      severity: "error",
+      message,
+    });
+  };
 
   const [location, setLocation] = useState({
     lat: 14.594323669692164,
     lng: 120.9803499922559,
   });
+
+  const validateForm = () => {
+    if (!listingData.roomName.trim()) {
+      showError("Room name is required.");
+      return false;
+    }
+
+    if (Number(listingData.roomRate) < 0) {
+      showError("Room rate cannot be negative.");
+      return false;
+    }
+
+    if (Number(listingData.tax) < 0) {
+      showError("Tax cannot be negative.");
+      return false;
+    }
+
+    if (Number(listingData.tax) > 100) {
+      showError("Tax cannot exceed 100%.");
+      return false;
+    }
+
+    if (Number(listingData.adultCapacity) < 1) {
+      showError("Adult capacity must be at least 1.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (!validateForm()) return;
+
+      await addDoc(collection(db, "listings"), {
+        name: listingData.roomName,
+
+        listingDescription: listingData.description,
+
+        attributes: attributes,
+
+        location: {
+          address: listingData.locationAddress,
+          locInfo: listingData.locationInformation,
+          geoLoc: new GeoPoint(location.lat, location.lng),
+        },
+
+        status: "pending",
+
+        roomRate: Number(listingData.roomRate),
+
+        fees: {
+          serviceFee: Number(listingData.serviceFee),
+          cleaningFee: Number(listingData.cleaningFee),
+          tax: Number(listingData.tax),
+          pet: Number(listingData.petFee),
+          childDiscount: Number(listingData.kidsFee),
+        },
+
+        capacity: {
+          adults: Number(listingData.adultCapacity),
+          children: Number(listingData.childCapacity),
+          infant: Number(listingData.infantCapacity),
+          pets: Number(listingData.petCapacity),
+          roomCount: Number(listingData.roomCount),
+        },
+
+        hostID: user.id,
+
+        imageUrl: listingData.imageURL,
+
+        createdAt: Timestamp.now(),
+        message: "",
+      });
+
+      navigate("/listingMasterlist", {
+        state: {
+          success: "Listing submitted successfully.",
+        },
+      });
+    } catch (err) {
+      console.error(err);
+
+      showError("Failed to create listing.");
+    }
+  };
 
   return (
     <Box
@@ -105,31 +227,52 @@ export const AddListing = () => {
               gap: 2,
             }}
           >
-            <TextField label="Room Name" fullWidth sx={textfieldSx} />
+            <TextField
+              label="Room Name"
+              fullWidth
+              sx={textfieldSx}
+              value={listingData.roomName}
+              onChange={(e) =>
+                setListingData((prev) => ({
+                  ...prev,
+                  roomName: e.target.value,
+                }))
+              }
+            />
 
-            <TextField label="Room Attributes" fullWidth sx={textfieldSx} />
-
-            <Button
-              variant="contained"
-              sx={{
-                width: "fit-content",
-                bgcolor: "#df7b4c",
-                textTransform: "none",
-                "&:hover": {
-                  bgcolor: "#c96d41",
-                },
-              }}
-            >
-              Add Attribute
-            </Button>
+            <Autocomplete
+              multiple
+              freeSolo
+              sx={textfieldSx}
+              options={[
+                "Master Bed",
+                "Dedicated Bathroom",
+                "WiFi",
+                "Air Conditioning",
+                "Kitchen",
+                "Parking",
+              ]}
+              value={attributes}
+              onChange={(event, newValue) => setAttributes(newValue)}
+              renderInput={(params) => (
+                <TextField {...params} label="Attributes" />
+              )}
+            />
           </Box>
 
           <TextField
             label="Description"
             multiline
-            rows={8}
+            rows={4}
             fullWidth
             sx={textfieldSx}
+            value={listingData.description}
+            onChange={(e) =>
+              setListingData((prev) => ({
+                ...prev,
+                description: e.target.value,
+              }))
+            }
           />
         </Box>
 
@@ -155,7 +298,7 @@ export const AddListing = () => {
 
             <Box
               sx={{
-                height: 250,
+                height: 320,
                 borderRadius: 2,
                 overflow: "hidden",
                 border: "1px solid #ddd",
@@ -174,43 +317,51 @@ export const AddListing = () => {
               sx={{
                 mb: 2,
                 fontWeight: 600,
-                visibility: "hidden",
               }}
             >
-              Upload
+              Listing Image
             </Typography>
 
+            <TextField
+              label="Image URL"
+              value={listingData.imageURL}
+              onChange={(e) =>
+                setListingData((prev) => ({
+                  ...prev,
+                  imageURL: e.target.value,
+                }))
+              }
+              fullWidth
+              sx={textfieldSx}
+            />
+
             <Box
-              component="label"
               sx={{
+                mt: 2,
                 height: 250,
                 borderRadius: 2,
-                bgcolor: "#bdbdbd",
-                cursor: "pointer",
+                overflow: "hidden",
+                border: "1px solid #ddd",
+                bgcolor: "#f5f5f5",
                 display: "flex",
-                flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
-                gap: 1,
               }}
             >
-              <input hidden accept="image/*" type="file" />
-
-              <AddPhotoAlternateIcon
-                sx={{
-                  fontSize: 70,
-                  color: "#fff",
-                }}
-              />
-
-              <Typography
-                sx={{
-                  color: "#fff",
-                  fontWeight: 600,
-                }}
-              >
-                Add Image
-              </Typography>
+              {listingData.imageURL ? (
+                <Box
+                  component="img"
+                  src={listingData.imageURL}
+                  alt="Preview"
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                <Typography color="text.secondary">Image Preview</Typography>
+              )}
             </Box>
           </Box>
         </Box>
@@ -232,13 +383,28 @@ export const AddListing = () => {
               gap: 2,
             }}
           >
-            <TextField label="Location Address" fullWidth sx={textfieldSx} />
+            <TextField
+              label="Location Address"
+              value={listingData.locationAddress}
+              onChange={(e) =>
+                setListingData((prev) => ({
+                  ...prev,
+                  locationAddress: e.target.value,
+                }))
+              }
+            />
 
             <TextField
               label="Latitude"
               value={location.lat}
               fullWidth
               sx={textfieldSx}
+              onChange={(e) =>
+                setListingData((prev) => ({
+                  ...prev,
+                  latitude: e.target.value,
+                }))
+              }
             />
 
             <TextField
@@ -246,6 +412,12 @@ export const AddListing = () => {
               value={location.lng}
               fullWidth
               sx={textfieldSx}
+              onChange={(e) =>
+                setListingData((prev) => ({
+                  ...prev,
+                  longitude: e.target.value,
+                }))
+              }
             />
           </Box>
 
@@ -255,6 +427,13 @@ export const AddListing = () => {
             rows={6}
             fullWidth
             sx={textfieldSx}
+            value={listingData.locationInformation}
+            onChange={(e) =>
+              setListingData((prev) => ({
+                ...prev,
+                locationInformation: e.target.value,
+              }))
+            }
           />
         </Box>
 
@@ -290,7 +469,14 @@ export const AddListing = () => {
                 fullWidth
                 sx={textfieldSx}
                 type="number"
+                value={listingData.roomRate}
                 slotProps={{ htmlInput: { min: 1 } }}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    roomRate: e.target.value,
+                  }))
+                }
               />
 
               <TextField
@@ -298,15 +484,29 @@ export const AddListing = () => {
                 fullWidth
                 sx={textfieldSx}
                 type="number"
+                value={listingData.serviceFee}
                 slotProps={{ htmlInput: { min: 1 } }}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    serviceFee: e.target.value,
+                  }))
+                }
               />
 
               <TextField
                 label="Cleaning Fee"
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.cleaningFee}
                 type="number"
                 slotProps={{ htmlInput: { min: 1 } }}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    cleaningFee: e.target.value,
+                  }))
+                }
               />
             </Box>
 
@@ -324,6 +524,13 @@ export const AddListing = () => {
                 slotProps={{ htmlInput: { min: 1, max: 100 } }}
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.tax}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    tax: e.target.value,
+                  }))
+                }
               />
 
               <TextField
@@ -332,6 +539,13 @@ export const AddListing = () => {
                 slotProps={{ htmlInput: { min: 1 } }}
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.petFee}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    petFee: e.target.value,
+                  }))
+                }
               />
 
               <TextField
@@ -340,6 +554,13 @@ export const AddListing = () => {
                 slotProps={{ htmlInput: { min: 1 } }}
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.kidsFee}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    kidsFee: e.target.value,
+                  }))
+                }
               />
             </Box>
           </Box>
@@ -375,24 +596,45 @@ export const AddListing = () => {
                 label="Adults"
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.adultCapacity}
                 type="number"
                 slotProps={{ htmlInput: { min: 1 } }}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    adultCapacity: e.target.value,
+                  }))
+                }
               />
 
               <TextField
                 label="Children"
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.childCapacity}
                 type="number"
                 slotProps={{ htmlInput: { min: 1 } }}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    childCapacity: e.target.value,
+                  }))
+                }
               />
 
               <TextField
                 label="Infant"
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.infantCapacity}
                 type="number"
                 slotProps={{ htmlInput: { min: 1 } }}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    infantCapacity: e.target.value,
+                  }))
+                }
               />
             </Box>
 
@@ -410,6 +652,13 @@ export const AddListing = () => {
                 slotProps={{ htmlInput: { min: 1, max: 100 } }}
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.petCapacity}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    petCapacity: e.target.value,
+                  }))
+                }
               />
 
               <TextField
@@ -418,6 +667,13 @@ export const AddListing = () => {
                 slotProps={{ htmlInput: { min: 1 } }}
                 fullWidth
                 sx={textfieldSx}
+                value={listingData.roomCount}
+                onChange={(e) =>
+                  setListingData((prev) => ({
+                    ...prev,
+                    roomCount: e.target.value,
+                  }))
+                }
               />
             </Box>
           </Box>
@@ -432,6 +688,7 @@ export const AddListing = () => {
         >
           <Button
             variant="contained"
+            onClick={handleSubmit}
             sx={{
               bgcolor: "#df7b4c",
               px: 5,
@@ -447,6 +704,33 @@ export const AddListing = () => {
           </Button>
         </Box>
       </Box>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() =>
+          setSnackbar((prev) => ({
+            ...prev,
+            open: false,
+          }))
+        }
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "center",
+        }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          variant="filled"
+          onClose={() =>
+            setSnackbar((prev) => ({
+              ...prev,
+              open: false,
+            }))
+          }
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

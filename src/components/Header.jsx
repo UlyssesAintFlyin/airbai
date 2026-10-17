@@ -19,6 +19,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export const Header = ({ onSearch, onOpenLogin, showSnackbar }) => {
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
@@ -78,16 +79,26 @@ export const Header = ({ onSearch, onOpenLogin, showSnackbar }) => {
         }}
       >
         <Box
-          component="img"
-          src={"/resources/airbai.png"}
-          alt="Logo"
+          component={Link}
+          to="/"
           sx={{
-            maxWidth: 130,
-            height: { xs: 40, md: "auto" },
-            transition:
-              "opacity 0.5s ease, max-width 0.5s ease, height 0.5s ease",
+            display: "inline-flex",
+            textDecoration: "none",
           }}
-        />
+        >
+          <Box
+            component="img"
+            src="/resources/airbai.png"
+            alt="Logo"
+            sx={{
+              maxWidth: 130,
+              height: { xs: 40, md: "auto" },
+              transition:
+                "opacity 0.5s ease, max-width 0.5s ease, height 0.5s ease",
+              cursor: "pointer",
+            }}
+          />
+        </Box>
         {location.pathname === "/" && (
           <>
             <Box

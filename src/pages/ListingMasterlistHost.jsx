@@ -9,6 +9,14 @@ import {
   Snackbar,
   Alert,
   Autocomplete,
+  Badge,
+  Menu,
+  MenuItem,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -16,12 +24,22 @@ import { AdminRoomCard } from "../components/AdminRoomCard";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import { Link, useNavigate } from "react-router-dom";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
 import { db } from "../firebase";
+import { useLocation } from "react-router-dom";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 
-const filters = ["All Listings", "Approved", "Turned-down", "Pending"];
+const filters = ["All Listings", "approved", "turned-down", "pending"];
 
 export const ListingMasterlistHost = () => {
+  const location = useLocation();
   const { user } = useAuth();
   const [value, setValue] = useState(filters[0]);
   const navigate = useNavigate();
@@ -30,6 +48,69 @@ export const ListingMasterlistHost = () => {
   const [searchText, setSearchText] = useState("");
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    severity: "success",
+    message: "",
+  });
+
+  const [notificationDialog, setNotificationDialog] = useState(false);
+
+  const [selectedNotification, setSelectedNotification] = useState(null);
+
+  const handleNotificationView = async (notif) => {
+    try {
+      await updateDoc(doc(db, "notifications", notif.id), {
+        read: true,
+      });
+
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)),
+      );
+
+      setSelectedNotification(notif);
+      setNotificationDialog(true);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchNotifications = async () => {
+      try {
+        const q = query(
+          collection(db, "notifications"),
+          where("hostID", "==", user.id),
+        );
+
+        const snapshot = await getDocs(q);
+
+        const notifData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setNotifications(notifData);
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
+    };
+
+    fetchNotifications();
+  }, [user]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const [anchorEl, setAnchorEl] = useState(null);
+  const handleNotificationOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setAnchorEl(null);
+  };
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -58,6 +139,21 @@ export const ListingMasterlistHost = () => {
 
     fetchRooms();
   }, [user]);
+
+  useEffect(() => {
+    if (location.state?.success) {
+      setSnackbar({
+        open: true,
+        severity: "success",
+        message: location.state.success,
+      });
+
+      navigate(location.pathname, {
+        replace: true,
+        state: null,
+      });
+    }
+  }, [location, navigate]);
 
   const filteredRooms = rooms.filter((room) => {
     const search = searchText.toLowerCase();
@@ -97,6 +193,13 @@ export const ListingMasterlistHost = () => {
       return;
     }
     navigate(`/listingMasterlist/EditListing/${selectedRoom.id}`);
+  };
+
+  const handleSuccessSnackbarClose = () => {
+    setSnackbar((prev) => ({
+      ...prev,
+      open: false,
+    }));
   };
 
   return (
@@ -158,8 +261,9 @@ export const ListingMasterlistHost = () => {
           <Box
             sx={{
               display: "flex",
-              width: { xs: "100%", sm: 420 },
+              width: { xs: "100%", sm: 450 },
               pt: { xs: 2, sm: 0 },
+              justifyContent: "space-between",
             }}
           >
             <Autocomplete
@@ -169,7 +273,7 @@ export const ListingMasterlistHost = () => {
                 setValue(newValue);
               }}
               sx={{
-                minWidth: { xs: "100%", sm: 420 },
+                minWidth: { xs: "90%", sm: 400 },
                 bgcolor: "#ffffff",
                 borderRadius: "8px",
                 "& .MuiOutlinedInput-root": {
@@ -181,6 +285,15 @@ export const ListingMasterlistHost = () => {
               }}
               renderInput={(params) => <TextField {...params} label="Filter" />}
             />
+
+            <IconButton
+              sx={{ minWidth: "20px", minHeight: "20px" }}
+              onClick={handleNotificationOpen}
+            >
+              <Badge badgeContent={unreadCount} color="error">
+                <NotificationsIcon />
+              </Badge>
+            </IconButton>
           </Box>
         </Box>
 
@@ -317,6 +430,95 @@ export const ListingMasterlistHost = () => {
           Please select a listing first.
         </Alert>
       </Snackbar>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleSuccessSnackbarClose}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "center",
+        }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleNotificationClose}
+      >
+        {notifications.length === 0 ? (
+          <MenuItem>No notifications</MenuItem>
+        ) : (
+          notifications.map((notif) => (
+            <MenuItem
+              sx={{
+                bgcolor: !notif.read ? "#fff3e0" : "inherit",
+                color: !notif.read ? "#0e0e0e" : "#878686",
+              }}
+              key={notif.id}
+              onClick={() => handleNotificationView(notif)}
+            >
+              <ListItemText
+                primary={
+                  notif.message.length > 50
+                    ? `${notif.message.slice(0, 30)}...`
+                    : notif.message
+                }
+              />
+            </MenuItem>
+          ))
+        )}
+      </Menu>
+      <Dialog
+        open={notificationDialog}
+        onClose={() => setNotificationDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Message from Airbai Admin</DialogTitle>
+
+        <DialogContent>
+          <Typography
+            sx={{
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {selectedNotification?.message}
+          </Typography>
+
+          <Typography
+            variant="caption"
+            sx={{
+              mt: 2,
+              display: "block",
+              color: "text.secondary",
+            }}
+          >
+            {selectedNotification?.createdAt?.toDate()?.toLocaleString()}
+          </Typography>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setNotificationDialog(false)}>Close</Button>
+
+          <Button
+            variant="contained"
+            onClick={() => {
+              setNotificationDialog(false);
+
+              navigate(`/listingMasterlist/${selectedNotification.listingID}`);
+            }}
+          >
+            View Listing
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
