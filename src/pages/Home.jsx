@@ -5,7 +5,6 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { useOutletContext } from "react-router-dom";
 
-
 export const Home = () => {
   const { searchQuery } = useOutletContext();
   const [rooms, setRooms] = useState([]);

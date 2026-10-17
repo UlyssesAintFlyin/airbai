@@ -18,7 +18,7 @@ const timeAgo = (ts) => {
 
 export const useListing = (listingId) => {
   const [state, setState] = useState({
-    listing: null, host: null, reviews: [], loading: true, error: null,
+    listing: null, host: null, reviews: [], bookings: [], loading: true, error: null,
   });
 
   useEffect(() => {
@@ -30,11 +30,17 @@ export const useListing = (listingId) => {
         if (!listingSnap.exists()) throw new Error("Listing not found");
         const listing = { id: listingSnap.id, ...listingSnap.data() };
 
-        const [hostSnap, reviewsSnap] = await Promise.all([
+        const [hostSnap, reviewsSnap, bookingsSnap] = await Promise.all([
           getDoc(doc(db, "users", listing.hostID)),
           getDocs(
             query(collection(db, "reviews"), where("listingID", "==", listingId))
-          )
+          ),
+          getDocs(
+            query(
+              collection(db, "bookings"),
+              where("listingID", "==", listingId)
+            )
+          ),
         ]);
 
         // Look up each reviewer once
@@ -55,16 +61,22 @@ export const useListing = (listingId) => {
             id: r.id,
             name: u?.name ? `${u.name.fName} ${u.name.lName}` : "Guest",
             date: timeAgo(r.createdAt),
-            rating: Number(r.rating ?? r.Rating) || 0,   
+            rating: Number(r.rating ?? r.Rating) || 0,
             review: r.comment,
           };
         });
+
+        const bookings = bookingsSnap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
         if (!cancelled) {
           setState({
             listing,
             host: hostSnap.exists() ? hostSnap.data() : null,
             reviews,
+            bookings,
             loading: false,
             error: null,
           });

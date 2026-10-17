@@ -63,6 +63,11 @@ app.post(
             },
             listingID: m.listingId,
             payment: Number(m.total),
+            taxPercentage: Number(m.taxPercentage),
+            taxAmount: Number(m.taxAmount),
+            airbaiFeePercentage: Number(m.airbaiFeePercentage),
+            airbaiFeeAmount: Number(m.airbaiFeeAmount),
+            hostIncome: Number(m.hostIncome),
             usersID: m.userId,
             status: "paid",
             paymentIntentId: session.payment_intent,
@@ -107,6 +112,21 @@ app.post("/api/create-checkout-session", async (req, res) => {
       guests: safeGuests,
     });
 
+    const taxPercentage = Number(listing.fees.tax || 0);
+
+    const taxAmount =
+      total * (taxPercentage / 100);
+
+    const airbaiFeePercentage = 15.5;
+
+    const airbaiFeeAmount =
+      total * (airbaiFeePercentage / 100);
+
+    const hostIncome =
+      total -
+      taxAmount -
+      airbaiFeeAmount;
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [{
@@ -128,6 +148,11 @@ app.post("/api/create-checkout-session", async (req, res) => {
         infant: String(safeGuests.infant),
         pets: String(safeGuests.pets),
         total: String(total),
+        taxPercentage: String(taxPercentage),
+        taxAmount: String(taxAmount),
+        airbaiFeePercentage: String(airbaiFeePercentage),
+        airbaiFeeAmount: String(airbaiFeeAmount),
+        hostIncome: String(hostIncome),
       },
       success_url: `${process.env.CLIENT_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/booking/cancelled`,

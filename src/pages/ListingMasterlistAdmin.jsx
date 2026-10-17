@@ -5,6 +5,7 @@ import {
   InputAdornment,
   TextField,
   IconButton,
+  Autocomplete,
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import { AdminRoomCard } from "../components/AdminRoomCard";
@@ -32,8 +33,11 @@ const rooms = [
   },
 ];
 
+const filters = ["All Listings", "Approved", "Turned-down", "Pending"];
+
 export const ListingMasterlistAdmin = () => {
   const [searchText, setSearchText] = useState("");
+  const [value, setValue] = useState(filters[0]);
 
   const buttonSx = {
     bgcolor: "#9a491d",
@@ -53,68 +57,115 @@ export const ListingMasterlistAdmin = () => {
       <Box
         sx={{
           display: "flex",
-          gap: "12px",
           alignItems: "center",
+          justifyContent: "space-between",
           mb: "14px",
           pb: 2,
           borderBottom: "1px solid #5C5C5C",
         }}
       >
-        <Button
-          id="tab-dashboard"
-          disableElevation
-          component={Link}
-          to="/admin"
+        <Box
           sx={{
-            bgcolor: "#ffffff",
-            color: "#df7b4c",
-            border: "1px solid #e8dbd4",
-            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
-            "&:hover": {
-              bgcolor: "#fef8f5",
-              borderColor: "#df7b4c",
-            },
+            gap: "12px",
+            display: "flex",
+            width: { xs: "100%", sm: "300px" },
           }}
         >
-          Dashboard
-        </Button>
+          <Button
+            id="tab-dashboard"
+            disableElevation
+            component={Link}
+            to="/admin"
+            sx={{
+              bgcolor: "#ffffff",
+              color: "#df7b4c",
+              border: "1px solid #e8dbd4",
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
+              "&:hover": {
+                bgcolor: "#fef8f5",
+                borderColor: "#df7b4c",
+              },
+            }}
+          >
+            Dashboard
+          </Button>
 
-        <Button
-          id="tab-listings"
-          disableElevation
-          component={Link}
-          to="/admin/listings"
+          <Button
+            id="tab-listings"
+            disableElevation
+            component={Link}
+            to="/admin/users"
+            sx={{
+              bgcolor: "#ffffff",
+              color: "#df7b4c",
+              border: "1px solid #e8dbd4",
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
+              "&:hover": {
+                bgcolor: "#fef8f5",
+                borderColor: "#df7b4c",
+              },
+            }}
+          >
+            users
+          </Button>
+          
+          <Button
+            id="tab-listings"
+            disableElevation
+            component={Link}
+            to="/admin/listings"
+            sx={{
+              bgcolor: "#df7b4c",
+              color: "#ffffff",
+              border: "none",
+              boxShadow: "0 2px 4px rgba(223, 123, 76, 0.25)",
+              "&:hover": {
+                bgcolor: "#d06e3f",
+                boxShadow: "0 4px 8px rgba(223, 123, 76, 0.35)",
+              },
+            }}
+          >
+            Listings
+          </Button>
+        </Box>
+
+        <Box
           sx={{
-            bgcolor: "#df7b4c",
-            color: "#ffffff",
-            border: "none",
-            boxShadow: "0 2px 4px rgba(223, 123, 76, 0.25)",
-            "&:hover": {
-              bgcolor: "#d06e3f",
-              boxShadow: "0 4px 8px rgba(223, 123, 76, 0.35)",
-            },
+            display: "flex",
+            alignItems: "stretch",
+            width: "420px",
+            flexDirection: { xs: "column", sm: "row" },
+            justifyContent: "space-between",
           }}
         >
-          Listings
-        </Button>
-        <Button
-          id="tab-listings"
-          disableElevation
-          component={Link}
-          to="/admin/users"
-          sx={{
-            bgcolor: "#ffffff",
-            color: "#df7b4c",
-            border: "1px solid #e8dbd4",
-            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
-            "&:hover": {
-              bgcolor: "#fef8f5",
-              borderColor: "#df7b4c",
-            },
-          }}
-        >
-          users
-        </Button>
+          <Box
+            sx={{
+              display: "flex",
+              width: { xs: "100%", sm: 420 },
+              pt: { xs: 2, sm: 0 },
+            }}
+          >
+            <Autocomplete
+              options={filters}
+              value={value}
+              onChange={(event, newValue) => {
+                setValue(newValue);
+              }}
+              sx={{
+                minWidth: { xs: "100%", sm: 420 },
+                bgcolor: "#ffffff",
+                borderRadius: "8px",
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "8px",
+                  "& fieldset": { borderColor: "#e8dbd4" },
+                  "&:hover fieldset": { borderColor: "#df7b4c" },
+                  "&.Mui-focused fieldset": { borderColor: "#df7b4c" },
+                },
+              }}
+              renderInput={(params) => <TextField {...params} label="Filter" />}
+            />
+          </Box>
+        </Box>
       </Box>
 
       <Box
@@ -127,7 +178,7 @@ export const ListingMasterlistAdmin = () => {
           justifyContent: "space-between",
         }}
       >
-        <Box sx={{ mb: 2, }}>
+        <Box sx={{ mb: 2 }}>
           <TextField
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -155,7 +206,7 @@ export const ListingMasterlistAdmin = () => {
               },
             }}
             sx={{
-              minWidth: { xs: "100%", sm:420},
+              minWidth: { xs: "100%", sm: 420 },
               bgcolor: "#ffffff",
               borderRadius: "8px",
               "& .MuiOutlinedInput-root": {

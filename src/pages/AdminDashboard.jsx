@@ -7,7 +7,7 @@ import {
   CardContent,
   Typography,
 } from "@mui/material";
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
 const FONT = "'Plus Jakarta Sans', sans-serif";
 
@@ -134,8 +134,8 @@ export const AdminDashboard = () => {
         <Button
           id="tab-dashboard"
           disableElevation
-          component={ Link } 
-          to="/admin" 
+          component={Link}
+          to="/admin"
           sx={{
             bgcolor: "#df7b4c",
             color: "#ffffff",
@@ -153,26 +153,8 @@ export const AdminDashboard = () => {
         <Button
           id="tab-listings"
           disableElevation
-          component={ Link } 
-          to="/admin/listings" 
-          sx={{
-            bgcolor: "#ffffff",
-            color: "#df7b4c",
-            border: "1px solid #e8dbd4",
-            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
-            "&:hover": {
-              bgcolor: "#fef8f5",
-              borderColor: "#df7b4c",
-            },
-          }}
-        >
-          Listings
-        </Button>
-        <Button
-          id="tab-listings"
-          disableElevation
-          component={ Link } 
-          to="/admin/users" 
+          component={Link}
+          to="/admin/users"
           sx={{
             bgcolor: "#ffffff",
             color: "#df7b4c",
@@ -185,6 +167,25 @@ export const AdminDashboard = () => {
           }}
         >
           users
+        </Button>
+
+        <Button
+          id="tab-listings"
+          disableElevation
+          component={Link}
+          to="/admin/listings"
+          sx={{
+            bgcolor: "#ffffff",
+            color: "#df7b4c",
+            border: "1px solid #e8dbd4",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
+            "&:hover": {
+              bgcolor: "#fef8f5",
+              borderColor: "#df7b4c",
+            },
+          }}
+        >
+          Listings
         </Button>
       </Box>
 

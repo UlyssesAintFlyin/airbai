@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   TextField,
@@ -10,41 +10,73 @@ import {
   Alert,
   Autocomplete,
 } from "@mui/material";
+import { useAuth } from "../context/AuthContext";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { AdminRoomCard } from "../components/AdminRoomCard";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import { Link, useNavigate } from "react-router-dom";
-
-const rooms = [
-  {
-    id: 1,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    status: "Pending",
-  },
-  {
-    id: 2,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    status: "Turned-down",
-  },
-  {
-    id: 3,
-    title: "Room in Cebu",
-    image: "/resources/room1.png",
-    status: "Approved",
-  },
-];
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../firebase";
 
 const filters = ["All Listings", "Approved", "Turned-down", "Pending"];
 
 export const ListingMasterlistHost = () => {
+  const { user } = useAuth();
   const [value, setValue] = useState(filters[0]);
   const navigate = useNavigate();
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [open, setOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      if (!user?.id) return;
+
+      try {
+        const q = query(
+          collection(db, "listings"),
+          where("hostID", "==", user.id),
+        );
+
+        const snapshot = await getDocs(q);
+
+        const roomData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setRooms(roomData);
+      } catch (error) {
+        console.error("Error fetching rooms:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRooms();
+  }, [user]);
+
+  const filteredRooms = rooms.filter((room) => {
+    const search = searchText.toLowerCase();
+
+    const matchesSearch =
+      String(room.name || "")
+        .toLowerCase()
+        .includes(search) ||
+      String(room.location?.address || "")
+        .toLowerCase()
+        .includes(search) ||
+      String(room.status || "")
+        .toLowerCase()
+        .includes(search);
+
+    const matchesFilter = value === "All Listings" || room.status === value;
+
+    return matchesSearch && matchesFilter;
+  });
 
   const handleSnackbarClose = (event, reason) => {
     if (reason === "clickaway") return;
@@ -241,29 +273,36 @@ export const ListingMasterlistHost = () => {
           </Box>
         </Box>
 
-        <Box
-          sx={{
-            width: "100%",
-            display: "grid",
-            gap: 5,
-            gridTemplateColumns: {
-              xs: "repeat(2, 1fr)",
-              sm: "repeat(auto-fill, minmax(180px, 1fr))",
-            },
-            mb: 5,
-          }}
-        >
-          {rooms.map((room) => (
-            <AdminRoomCard
-              key={room.id}
-              {...room}
-              selected={selectedRoom?.id === room.id}
-              onClick={() => {
-                setSelectedRoom((prev) => (prev?.id === room.id ? null : room));
-              }}
-            />
-          ))}
-        </Box>
+        {loading ? (
+          <Typography>Loading listings...</Typography>
+        ) : (
+          <Box
+            sx={{
+              width: "100%",
+              display: "grid",
+              gap: 5,
+              gridTemplateColumns: {
+                xs: "repeat(2, 1fr)",
+                sm: "repeat(auto-fill, minmax(180px, 1fr))",
+              },
+              mb: 5,
+            }}
+          >
+            {filteredRooms.map((room) => (
+              <AdminRoomCard
+                key={room.id}
+                id={room.id}
+                title={room.name}
+                image={room.imageUrl}
+                status={room.status}
+                selected={selectedRoom?.id === room.id}
+                onClick={() =>
+                  setSelectedRoom(selectedRoom?.id === room.id ? null : room)
+                }
+              />
+            ))}
+          </Box>
+        )}
       </Box>
       <Snackbar
         open={open}

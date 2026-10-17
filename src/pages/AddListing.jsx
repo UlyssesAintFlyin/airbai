@@ -232,7 +232,7 @@ export const AddListing = () => {
               gap: 2,
             }}
           >
-            <TextField label="Location Name" fullWidth sx={textfieldSx} />
+            <TextField label="Location Address" fullWidth sx={textfieldSx} />
 
             <TextField
               label="Latitude"
@@ -289,11 +289,25 @@ export const AddListing = () => {
                 label="Room Rate (Per Night)"
                 fullWidth
                 sx={textfieldSx}
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
               />
 
-              <TextField label="Service Fee" fullWidth sx={textfieldSx} />
+              <TextField
+                label="Service Fee"
+                fullWidth
+                sx={textfieldSx}
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
+              />
 
-              <TextField label="Cleaning Fee" fullWidth sx={textfieldSx} />
+              <TextField
+                label="Cleaning Fee"
+                fullWidth
+                sx={textfieldSx}
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
+              />
             </Box>
 
             {/* RIGHT */}
@@ -304,16 +318,104 @@ export const AddListing = () => {
                 gap: 2,
               }}
             >
-              <TextField label="Tax" fullWidth sx={textfieldSx} />
-
               <TextField
-                label="Additional Fee for Pets"
+                label="Tax (Percentage)"
+                type="number"
+                slotProps={{ htmlInput: { min: 1, max: 100 } }}
                 fullWidth
                 sx={textfieldSx}
               />
 
               <TextField
-                label="Additional Fee for Kids"
+                label="Additional Fee for Pets"
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
+                fullWidth
+                sx={textfieldSx}
+              />
+
+              <TextField
+                label="Discount Fee for Kids"
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
+                fullWidth
+                sx={textfieldSx}
+              />
+            </Box>
+          </Box>
+        </Box>
+        <Box>
+          <Typography
+            sx={{
+              fontWeight: 700,
+              mb: 3,
+            }}
+          >
+            Define Guest Capacity
+          </Typography>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "1fr 1fr",
+              },
+              gap: 4,
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              <TextField
+                label="Adults"
+                fullWidth
+                sx={textfieldSx}
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
+              />
+
+              <TextField
+                label="Children"
+                fullWidth
+                sx={textfieldSx}
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
+              />
+
+              <TextField
+                label="Infant"
+                fullWidth
+                sx={textfieldSx}
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
+              />
+            </Box>
+
+            {/* RIGHT */}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              <TextField
+                label="Pets"
+                type="number"
+                slotProps={{ htmlInput: { min: 1, max: 100 } }}
+                fullWidth
+                sx={textfieldSx}
+              />
+
+              <TextField
+                label="Number of Rooms"
+                type="number"
+                slotProps={{ htmlInput: { min: 1 } }}
                 fullWidth
                 sx={textfieldSx}
               />
